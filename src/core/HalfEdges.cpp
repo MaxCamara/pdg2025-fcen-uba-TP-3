@@ -55,7 +55,10 @@ HalfEdges::HalfEdges(const int nVertices, const vector<int>&  coordIndex):
   _twin(),
   _face(),
   _firstCornerEdge(),
-  _cornerEdge()
+  _cornerEdge(),
+  _hasBoundaryEdge(false),
+  _hasRegularEdge(false),
+  _hasSingularEdge(false)
 {
   // - both the _twin array and the _face array should end up being of
   //   the same size as the _coordIndex array
@@ -264,6 +267,14 @@ HalfEdges::HalfEdges(const int nVertices, const vector<int>&  coordIndex):
       }
       iC0 = iC1+1;
   }
+
+  //Me fijo si hay aristas borde, regulares o singulares en el grafo. Esto lo podría hacer en cualquiera de los loops sobre los edges para optimizar, pero lo hago
+  //por separado para visualizar mejor cada paso de la creación de la instancia de la clase
+  for(iE=0; iE<nE; iE++){
+    if(nFacesEdge[iE]==1) _hasBoundaryEdge = true;
+    if(nFacesEdge[iE]==2) _hasRegularEdge = true;
+    if(nFacesEdge[iE]>=3) _hasSingularEdge = true;
+  }
 }
 
 int HalfEdges::getNumberOfCorners() const {
@@ -271,7 +282,7 @@ int HalfEdges::getNumberOfCorners() const {
 }
 
 int HalfEdges::getFace(const int iC) const {
-    if(iC < 0 || iC >= getNumberOfCorners()) return -1;
+    if(iC < 0 || iC >= getNumberOfCorners() || _coordIndex[iC] == -1) return -1;
     return _face[iC];
 }
 
@@ -299,18 +310,17 @@ int HalfEdges::getNext(const int iC) const {
 
 int HalfEdges::getPrev(const int iC) const {
     if(iC < 0 || iC >= getNumberOfCorners() || _coordIndex[iC] == -1) return -1;
-    int prev = -1;
+    int prev;
     if(iC == 0 || _coordIndex[iC-1] < 0){
-        prev = iC+2;
-        while(_coordIndex[prev+1]>=0) prev++;
+        int faceSize = getFaceSize(iC);
+        prev = iC + faceSize - 1;
     } else {
-        prev = _coordIndex[iC-1];
+        prev = iC-1;
     }
     return prev;
 }
 
 int HalfEdges::getTwin(const int iC) const {
-  // TODO
     if(iC < 0 || iC >= getNumberOfCorners() || _coordIndex[iC] == -1) return -1;
     return _twin[iC];
 }
@@ -352,17 +362,34 @@ bool HalfEdges::isOriented(const int iC) const {
   /*  / iV11 <-- iV10  \  */
   /* /                  \ */
   // return false;
+    if(iC < 0 || iC >= getNumberOfCorners() || _coordIndex[iC] == -1) return false;
+    int vSrc = getSrc(iC);
+    int vDst = getDst(iC);
+    int iE = getEdge(min(vSrc, vDst), max(vSrc, vDst));
+    bool regularEdge = isRegularEdge(iE);
+    bool oriented;
+    if (regularEdge) {
+        int iCtwin = getTwin(iC);
+        oriented = (getDst(iCtwin) == getSrc(iC));
+    } else {
+        oriented = false;
+    }
+    return oriented;
 }
 
 // half-edge method getFaceSize()
 int HalfEdges::getFaceSize(const int iC) const {
   // TODO
-  return 0;
+  if(iC < 0 || iC >= getNumberOfCorners() || _coordIndex[iC] == -1) return -1;
+  int separatorIndex = iC+1;
+  while (_twin[separatorIndex]>=-1){separatorIndex++;} //El tamaño de la cara se almacena negado en la posición de su separador en _twin.
+                                                       //Como cada cara tiene tamaño >=3, no se confunde con un valor twin válido
+  return -(_twin[separatorIndex]);
 }
   
 int HalfEdges::getNumberOfFacesEdge(const int iE) const {
-  // TODO
-  return 0;
+    if(iE < 0 || iE >= getNumberOfEdges()) return -1;  //En la página web dice que debería retornar 0, lo que lo haría consistente con getNumberOfEdgeHalfEdges
+    return (_firstCornerEdge[iE+1] - _firstCornerEdge[iE]);
 }
 
 bool HalfEdges::isBoundaryEdge(const int iE) const {
@@ -384,15 +411,15 @@ bool HalfEdges::isSingularEdge(const int iE) const {
 
 bool HalfEdges::hasBoundaryEdges() const {
   // TODO
-  return false;
+  return _hasBoundaryEdge;
 }
 
 bool HalfEdges::hasRegularEdges() const {
   // TODO
-  return false;
+  return _hasRegularEdge;
 }
 
 bool HalfEdges::hasSingularEdges() const {
   // TODO
-  return false;
+  return _hasSingularEdge;
 }
