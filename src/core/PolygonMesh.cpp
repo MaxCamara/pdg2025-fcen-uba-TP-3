@@ -42,6 +42,7 @@
 #include <iostream>
 #include "PolygonMesh.hpp"
 #include "Partition.hpp"
+#include "Faces.hpp"
 
 // TODO Mon Mar 6 2023
 // - merge your code from Assignment 2
@@ -253,6 +254,42 @@ int PolygonMesh::computeConnectedComponentsPrimal(vector<int>& faceLabel) const 
   // - second, assign component numbers to all the other vertices
   // - finally, fill the faceLabel array using the component number
   //   associated with the first vertex of each face
+
+  int nV = getNumberOfVertices();
+  int nE = getNumberOfEdges();
+  int nF = getNumberOfFaces();
+  Partition vertexPartition(nV);
+
+  for(int iE=0; iE<nE; iE++){
+    int V0 = getVertex0(iE);
+    int V1 = getVertex1(iE);
+    vertexPartition.join(V0, V1);
+  }
+
+  nCCprimal = vertexPartition.getNumberOfParts();
+
+  vector<int> vToCC(nV, -1);
+  int componentNumber = 0;
+  for (int iV=0; iV<nV; iV++) {
+    if (vertexPartition.find(iV) == iV) {
+      //iV es el vértice representativo de su partición
+      vToCC[iV] = componentNumber;
+      componentNumber++;
+    }
+  }
+  for (int iV=0; iV<nV; iV++) {
+    int representative = vertexPartition.find(iV);
+    if (representative != iV) {
+      //iV no es el índice representativo de su partición
+      vToCC[iV] = vToCC[representative];
+    }
+  }
+
+  Faces faces(nV, _coordIndex);
+  for (int iF=0; iF<nF; iF++) {
+    int vertex = faces.getFaceVertex(iF, 0); //Obtengo el primer vértice de la cara
+    faceLabel.push_back(vToCC[vertex]);
+  }
   
   return nCCprimal;
 }
@@ -280,6 +317,49 @@ int PolygonMesh::computeConnectedComponentsDual(vector<int>& faceLabel) const {
   // - component number assignment is similar to the primal case, but
   //   easier here, since there is no need to transfer from vertices
   //   to faces
+
+  int nC = getNumberOfCorners();
+  int nF = getNumberOfFaces();
+  Partition facePartition(nF);
+  for(iF=iC0=iC1=0;iC1<nC;iC1++) {
+    if(_coordIndex[iC1]>=0) continue;
+    for(iC=iC0; iC<iC1; iC++){
+      int vSrc = getSrc(iC);
+      int vDst = getDst(iC);
+      int iE = getEdge(min(vSrc, vDst), max(vSrc, vDst));
+      bool regularEdge = isRegularEdge(iE);
+      if (regularEdge) {
+        iCt = getTwin(iC);
+        iFt = getFace(iCt);
+        facePartition.join(iF, iFt);
+      }
+    }
+    iC0 = iC1+1;
+    iF++;
+  }
+
+  nCCdual = facePartition.getNumberOfParts();
+
+  vector<int> faceToCC(nF, -1);
+  int componentNumber = 0;
+  for (int iF=0; iF<nF; iF++) {
+    if (facePartition.find(iF) == iF) {
+      //iF es la cara representativa de su partición
+      faceToCC[iF] = componentNumber;
+      componentNumber++;
+    }
+  }
+  for (int iF=0; iF<nF; iF++) {
+    int representative = facePartition.find(iF);
+    if (representative != iF) {
+      //iF no es la cara representativa de su partición
+      faceToCC[iF] = faceToCC[representative];
+    }
+  }
+
+  for (int iF=0; iF<nF; iF++) {
+    faceLabel.push_back(faceToCC[iF]);
+  }
   
   return nCCdual;
 }
@@ -302,8 +382,16 @@ bool PolygonMesh::isOriented() const {
   // - as soon as you find one edge which is not consistently oriented
   //   you can reurn false
   // - if no inconsistently oriented edge is found, return true
-
-  return true;
+  bool oriented = true;
+  int nC = getNumberOfCorners();
+  for (int iC=0; iC<nC; iC++) {
+    if (_coordIndex[iC]==-1) continue;
+    if (!HalfEdges::isOriented(iC)) {
+      oriented = false;
+      break;
+    }
+  }
+  return oriented;
 }
 
 // determines if the mesh is orientable
@@ -356,6 +444,68 @@ bool PolygonMesh::isOrientable() const {
   //     all the connected components are accounted for }
   //  }
 
+  int nV = getNumberOfVertices();
+  Faces faces(nV, _coordIndex);
+
+  int iF_root = 0;
+
+  while (iF_root < nF) {
+    face_was_visited[iF_root] = true;
+
+    //Agrego todas las esquinas de la cara al stack
+    int iC0 = faces.getFaceFirstCorner(iF_root);
+    corner_stack.push_back(iC0);
+    int iCNext = getNext(iC0);
+    while (iCNext != iC0) {
+      corner_stack.push_back(iCNext);
+      iCNext = getNext(iCNext);
+    }
+
+    while (!corner_stack.empty()) {
+      //Saco la siguiente esquina del stack y me fijo si tiene una esquina twin válida (es decir, si es un half-edge incidente a una arista regular)
+      int iC = corner_stack[corner_stack.size()-1];
+      corner_stack.pop_back();
+      int iCt = getTwin(iC);
+      if (iCt >= 0) {
+        int iF = getFace(iC);
+        int iFt = getFace(iCt);
+
+        bool consistentlyOriented = (getSrc(iC) == getDst(iCt));
+
+        //Como iF es la cara de la esquina obtenida del stack, sabemos que ya la visitamos y por lo tanto ya decidimos si se tiene que invertir o no
+        //Si la cara iF se tiene que invertir, entonces la cara iFt se tiene que invertir solo si actualmente estan consistentemente orientadas
+        //Si la cara iF no se tiene que invertir, entonces la cara iFt se tiene que invertir solo si no están consistentemente orientadas
+        bool shouldInvert;
+        if (invert_face[iF]) {
+          shouldInvert = consistentlyOriented;
+        } else {
+          shouldInvert = !consistentlyOriented;
+        }
+
+        if (face_was_visited[iFt]) {
+          if (shouldInvert != invert_face[iFt]) return false;
+        } else {
+          face_was_visited[iFt] = true;
+
+          invert_face[iFt] = shouldInvert;
+
+          corner_stack.push_back(iCt);
+          iCNext = getNext(iCt);
+          while (iCNext != iCt) {
+            corner_stack.push_back(iCNext);
+            iCNext = getNext(iCNext);
+          }
+        }
+      }
+    }
+
+    //Busco un nuevo valor iF_root de una cara que no se haya visitado. Si todas las caras se visitaron, iF_root queda con valor nF y se rompe el ciclo
+    for (iF_root=0; iF_root<nF; iF_root++) {
+      if (face_was_visited[iF_root] == false) break;
+    }
+  }
+
+  //Si llego a este punto, ya verifiqué que la malla es orientable
   return true;
 }
 
@@ -393,6 +543,86 @@ int PolygonMesh::orient(vector<int>& ccIndex, vector<bool>& invert_face) {
   // - note that you cannot return right away if isOriented()==true
   //   since we need to partition the faces into connected components,
   //   and fill the ccIndex and invert_face array
+
+  //inicializo ccIndex e invert_face para que tengan tamaño nF
+  for (int iF=0; iF<nF; iF++) {
+    ccIndex.push_back(-1);
+    invert_face.push_back(false);
+  }
+
+  int nV = getNumberOfVertices();
+  Faces faces(nV, _coordIndex);
+
+  int iF_root = 0;
+
+  while (iF_root < nF) {
+    //En cada iteración del while exploro las caras de una nueva componente conexa
+    nCC++;
+    face_was_visited[iF_root] = true;
+    //El ccIndex de cada cara visitada en el while va a ser igual a la cantidad de componentes conexas descubiertas en el momento menos uno
+    ccIndex[iF_root] = nCC-1;
+
+
+    //Agrego todas las esquinas de la cara al stack
+    int iC0 = faces.getFaceFirstCorner(iF_root);
+    corner_stack.push_back(iC0);
+    int iCNext = getNext(iC0);
+    while (iCNext != iC0) {
+      corner_stack.push_back(iCNext);
+      iCNext = getNext(iCNext);
+    }
+
+    while (!corner_stack.empty()) {
+      //Saco la siguiente esquina del stack y me fijo si tiene una esquina twin válida (es decir, si es un half-edge incidente a una arista regular)
+      int iC = corner_stack[corner_stack.size()-1];
+      corner_stack.pop_back();
+      int iCt = getTwin(iC);
+      if (iCt >= 0) {
+        int iF = getFace(iC);
+        int iFt = getFace(iCt);
+
+        bool consistentlyOriented = (getSrc(iC) == getDst(iCt));
+
+        //Como iF es la cara de la esquina obtenida del stack, sabemos que ya la visitamos y por lo tanto ya decidimos si se tiene que invertir o no
+        //Si la cara iF se tiene que invertir, entonces la cara iFt se tiene que invertir solo si actualmente estan consistentemente orientadas
+        //Si la cara iF no se tiene que invertir, entonces la cara iFt se tiene que invertir solo si no están consistentemente orientadas
+        bool shouldInvert;
+        if (invert_face[iF]) {
+          shouldInvert = consistentlyOriented;
+        } else {
+          shouldInvert = !consistentlyOriented;
+        }
+
+        if (face_was_visited[iFt]) {
+          if (shouldInvert != invert_face[iFt]) {
+            //Si encuentro que la malla no es orientable, vacío los vectores del output y devuelvo 0
+            ccIndex.clear();
+            invert_face.clear();
+            return 0;
+          }
+        } else {
+          face_was_visited[iFt] = true;
+
+          //Cuando visito una cara, reflejo en ccIndex que forma parte de la componente conexa que se está explorando actualmente
+          ccIndex[iFt] = nCC-1;
+
+          invert_face[iFt] = shouldInvert;
+
+          corner_stack.push_back(iCt);
+          iCNext = getNext(iCt);
+          while (iCNext != iCt) {
+            corner_stack.push_back(iCNext);
+            iCNext = getNext(iCNext);
+          }
+        }
+      }
+    }
+
+    //Busco un nuevo valor iF_root de una cara que no se haya visitado. Si todas las caras se visitaron, iF_root queda con valor nF y se rompe el ciclo
+    for (iF_root=0; iF_root<nF; iF_root++) {
+      if (face_was_visited[iF_root] == false) break;
+    }
+  }
 
   return nCC;
 }
