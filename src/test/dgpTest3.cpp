@@ -108,8 +108,22 @@ void options(Data& D) {
   // TODO Mon Mar 6 2023
   // - add line(s) to explain how to specify the operation to be performed
 
-  cout << " -ccp | -ccPrimal ["
+  cout << " -ccp|-ccPrimal            ["
        << tv(D._operation==Operation::COMPUTE_CC_PRIMAL) << "]" << endl;
+  cout << " -ccd|-ccDual              ["
+       << tv(D._operation==Operation::COMPUTE_CC_DUAL) << "]" << endl;
+  cout << "  -od|-oriented            ["
+       << tv(D._operation==Operation::IS_ORIENTED) << "]" << endl;
+  cout << "  -oe|-orientable          ["
+       << tv(D._operation==Operation::IS_ORIENTABLE) << "]" << endl;
+  cout << "   -o|-orient              ["
+       << tv(D._operation==Operation::ORIENT) << "]" << endl;
+  cout << "  -ri|-removeIsolated      ["
+       << tv(D._operation==Operation::REMOVE_ISOLATED_VERTICES) << "]" << endl;
+  cout << "  -cs|-cutThroughSingular  ["
+       << tv(D._operation==Operation::CUT_THROUGH_SINGULAR_VERTICES) << "]" << endl;
+  cout << "   -m|-manifold            ["
+       << tv(D._operation==Operation::CONVERT_TO_MANIFOLD) << "]" << endl;
 }
 
 void usage(Data& D) {
@@ -148,6 +162,27 @@ int main(int argc, char **argv) {
 
     } else if(string(argv[i])=="-ccp" || string(argv[i])=="-ccPrimal") {
       D._operation = Operation::COMPUTE_CC_PRIMAL;
+
+    } else if(string(argv[i])=="-ccd" || string(argv[i])=="-ccDual") {
+      D._operation = Operation::COMPUTE_CC_DUAL;
+
+    } else if(string(argv[i])=="-od" || string(argv[i])=="-oriented") {
+      D._operation = Operation::IS_ORIENTED;
+
+    } else if(string(argv[i])=="-oe" || string(argv[i])=="-orientable") {
+      D._operation = Operation::IS_ORIENTABLE;
+
+    } else if(string(argv[i])=="-o" || string(argv[i])=="-orient") {
+      D._operation = Operation::ORIENT;
+
+    } else if(string(argv[i])=="-ri" || string(argv[i])=="-removeIsolated") {
+      D._operation = Operation::REMOVE_ISOLATED_VERTICES;
+
+    } else if(string(argv[i])=="-cs" || string(argv[i])=="-cutThroughSingular") {
+      D._operation = Operation::CUT_THROUGH_SINGULAR_VERTICES;
+
+    } else if(string(argv[i])=="-m" || string(argv[i])=="-manifold") {
+      D._operation = Operation::CONVERT_TO_MANIFOLD;
 
     } else if(string(argv[i])[0]=='-') {
       error("unknown option");
