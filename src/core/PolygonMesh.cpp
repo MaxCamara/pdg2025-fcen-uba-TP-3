@@ -637,7 +637,11 @@ int PolygonMesh::numberOfIsolatedVertices() {
   // HINTS :
   //
   // - isolated vertices are those not contained in the coordIndex array
-  // - it is sufficient to count how many faces are incident to each vertex 
+  // - it is sufficient to count how many faces are incident to each vertex
+
+  vector<int> isolatedVertices = {};
+  getIsolatedVertices(isolatedVertices);
+  nV_isolated = isolatedVertices.size();
 
   return nV_isolated;
 }
@@ -650,6 +654,22 @@ void PolygonMesh::getIsolatedVertices(vector<int>& isolated_vertex) {
   //
   // - same as the previous method, but returning the indices of the
   //   isolated vertices in an array
+
+  int nV = getNumberOfVertices();
+  int nE = getNumberOfEdges();
+  vector<bool> isIsolated(nV, true);
+
+  for (int iE=0; iE<nE; iE++) {
+    int V0 = getVertex0(iE);
+    int V1 = getVertex1(iE);
+    isIsolated[V0] = false;
+    isIsolated[V1] = false;
+  }
+
+  for (int iV=0; iV<nV; iV++) {
+    if (isIsolated[iV]) isolated_vertex.push_back(iV);
+  }
+
 
 }
 
@@ -680,6 +700,36 @@ bool PolygonMesh::removeIsolatedVertices
   //   where you store the location of each non-isolated vertex in the
   //   coordMap array
   // - use this array to fill the coordIndexOut array from coordIndex
+
+  vector<int> isolatedVertices = {};
+  getIsolatedVertices(isolatedVertices);
+  if (isolatedVertices.empty()) return false;
+
+  int nV = getNumberOfVertices();
+  vector<int> newVertex(nV, 0);
+
+  for (int iV : isolatedVertices) {
+    newVertex[iV] = -1;
+  }
+
+  int vertexCounter = 0;
+  for (int iV = 0; iV<nV; iV++) {
+    if (newVertex[iV]==-1) continue;
+    newVertex[iV] = vertexCounter;
+    coordMap.push_back(iV);
+    vertexCounter++;
+  }
+
+  int nC = getNumberOfCorners();
+  for (int iC=0; iC<nC; iC++) {
+    if (_coordIndex[iC]==-1) {
+      coordIndexOut.push_back(-1);
+    } else {
+      int iV = _coordIndex[iC];
+      int newiV = newVertex[iV];
+      coordIndexOut.push_back(newiV);
+    }
+  }
 
   return true;
 }
@@ -736,6 +786,56 @@ void PolygonMesh::cutThroughSingularVertices
   // - second pass through the coordIndex array
   //    - fill the coordIndexOut array for non-root corner indices of
   //      the partition
+  int nC = getNumberOfCorners();
+  int nE = getNumberOfEdges();
+  Partition partition(nC);
+  vector<int> firstIncidentHalfEdge(nE, -1);
+
+  for (int iC=0; iC<nC; iC++) {
+    if (_coordIndex[iC] == -1) continue;
+    int vSrc = getSrc(iC);
+    int vDst = getDst(iC);
+    int iE = getEdge(min(vSrc, vDst), max(vSrc, vDst));
+    if (firstIncidentHalfEdge[iE] == -1) {
+      firstIncidentHalfEdge[iE] = iC;
+    } else {
+      int iCt = firstIncidentHalfEdge[iE];
+      if (getSrc(iC) == getDst(iCt)) {
+        partition.join(iC, getNext(iCt));
+        partition.join(getNext(iC), iCt);
+      } else {
+        partition.join(iC, iCt);
+        partition.join(getNext(iC), getNext(iCt));
+      }
+    }
+  }
+
+  int nF = getNumberOfFaces();
+  int nV = getNumberOfVertices();
+  int nVout = partition.getNumberOfParts() - nF;
+  if (nVout == nV) return;
+
+  for (int iC=0; iC<nC; iC++) {
+    coordIndexOut.push_back(-1);
+  }
+
+  int vertexCounter=0;
+  for (int iC; iC<nC; iC++) {
+    if (_coordIndex[iC] == -1) continue;
+    if (partition.find(iC) == iC) {
+      coordIndexOut[iC] = vertexCounter;
+      vIndexMap.push_back(_coordIndex[iC]);
+      vertexCounter++;
+    }
+  }
+
+  for (int iC; iC<nC; iC++) {
+    if (_coordIndex[iC] == -1) continue;
+    int iCroot = partition.find(iC);
+    if (iCroot != iC) {
+      coordIndexOut[iC] = coordIndexOut[iCroot];
+    }
+  }
 
 }
 
@@ -770,4 +870,56 @@ void PolygonMesh::convertToManifold
   //
   // - to prevent these problems the orient() method should be calle
   // - before this one
+
+  int nC = getNumberOfCorners();
+  int nE = getNumberOfEdges();
+  Partition partition(nC);
+  vector<int> firstIncidentHalfEdge(nE, -1);
+
+  for (int iC=0; iC<nC; iC++) {
+    if (_coordIndex[iC] == -1) continue;
+    int vSrc = getSrc(iC);
+    int vDst = getDst(iC);
+    int iE = getEdge(min(vSrc, vDst), max(vSrc, vDst));
+    if (isSingularEdge(iE)) continue;
+    if (firstIncidentHalfEdge[iE] == -1) {
+      firstIncidentHalfEdge[iE] = iC;
+    } else {
+      int iCt = firstIncidentHalfEdge[iE];
+      if (getSrc(iC) == getDst(iCt)) {
+        partition.join(iC, getNext(iCt));
+        partition.join(getNext(iC), iCt);
+      } else {
+        partition.join(iC, iCt);
+        partition.join(getNext(iC), getNext(iCt));
+      }
+    }
+  }
+
+  int nF = getNumberOfFaces();
+  int nV = getNumberOfVertices();
+  int nVout = partition.getNumberOfParts() - nF;
+  if (nVout == nV) return;
+
+  for (int iC=0; iC<nC; iC++) {
+    coordIndexOut.push_back(-1);
+  }
+
+  int vertexCounter=0;
+  for (int iC; iC<nC; iC++) {
+    if (_coordIndex[iC] == -1) continue;
+    if (partition.find(iC) == iC) {
+      coordIndexOut[iC] = vertexCounter;
+      vIndexMap.push_back(_coordIndex[iC]);
+      vertexCounter++;
+    }
+  }
+
+  for (int iC; iC<nC; iC++) {
+    if (_coordIndex[iC] == -1) continue;
+    int iCroot = partition.find(iC);
+    if (iCroot != iC) {
+      coordIndexOut[iC] = coordIndexOut[iCroot];
+    }
+  }
 }
