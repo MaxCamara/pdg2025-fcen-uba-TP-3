@@ -316,30 +316,180 @@ int main(int argc, char **argv) {
   // PolygonMesh::cutThroughSingularVertices()
   // PolygonMesh::convertToManifold()
 
+  Node* node;
+  SceneGraphTraversal sgt(wrl);
+
   switch(D._operation) {
   case Operation::COMPUTE_CC_PRIMAL:
     // perform the operation here
+    cout << "    calculando componentes conexas del primal graph" << endl;
+    for(int iIfs=0;(node=sgt.next())!=(Node*)0;iIfs++) {
+      Shape* shape = dynamic_cast<Shape*>(node);
+      if(shape==(Shape*)0) continue;
+      IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
+      if(ifs==(IndexedFaceSet*)0) continue;
+
+      int nV = ifs->getNumberOfVertices();
+      PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
+      vector<int> faceLabel;
+      int nCC = polygon_mesh.computeConnectedComponentsPrimal(faceLabel);
+
+      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+      cout << "        nCC_primal = " << nCC << endl;
+
+      if (nCC == 0) continue;
+
+      int nF = polygon_mesh.getNumberOfFaces();
+      for (int iF=0; iF<nF; iF++) {
+        cout << "        faceLabel[" << iF << "] = " << faceLabel[iF] << endl;
+      }
+    }
     break;
   case Operation::COMPUTE_CC_DUAL:
     // perform the operation here
+    cout << "    calculando componentes conexas del dual graph" << endl;
+    for(int iIfs=0;(node=sgt.next())!=(Node*)0;iIfs++) {
+      Shape* shape = dynamic_cast<Shape*>(node);
+      if(shape==(Shape*)0) continue;
+      IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
+      if(ifs==(IndexedFaceSet*)0) continue;
+
+      int nV = ifs->getNumberOfVertices();
+      PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
+      vector<int> faceLabel;
+      int nCC = polygon_mesh.computeConnectedComponentsDual(faceLabel);
+
+      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+      cout << "        nCC_dual = " << nCC << endl;
+
+      if (nCC == 0) continue;
+
+      int nF = polygon_mesh.getNumberOfFaces();
+      for (int iF=0; iF<nF; iF++) {
+        cout << "        faceLabel[" << iF << "] = " << faceLabel[iF] << endl;
+      }
+    }
     break;
   case Operation::IS_ORIENTED:
     // perform the operation here
+    cout << "    determinando si la malla está consistentemente orientada" << endl;
+    for(int iIfs=0;(node=sgt.next())!=(Node*)0;iIfs++) {
+      Shape* shape = dynamic_cast<Shape*>(node);
+      if(shape==(Shape*)0) continue;
+      IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
+      if(ifs==(IndexedFaceSet*)0) continue;
+
+      int nV = ifs->getNumberOfVertices();
+      PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
+
+      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+      cout << "        isOriented = " << tv(polygon_mesh.isOriented()) << endl;
+    }
     break;
   case Operation::IS_ORIENTABLE:
     // perform the operation here
+    cout << "    determinando si la malla es orientable" << endl;
+    for(int iIfs=0;(node=sgt.next())!=(Node*)0;iIfs++) {
+      Shape* shape = dynamic_cast<Shape*>(node);
+      if(shape==(Shape*)0) continue;
+      IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
+      if(ifs==(IndexedFaceSet*)0) continue;
+
+      int nV = ifs->getNumberOfVertices();
+      PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
+
+      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+      cout << "        isOrientable = " << tv(polygon_mesh.isOrientable()) << endl;
+    }
     break;
   case Operation::ORIENT:
     // perform the operation here
+    cout << "    intentando orientar la malla" << endl;
+    for(int iIfs=0;(node=sgt.next())!=(Node*)0;iIfs++) {
+      Shape* shape = dynamic_cast<Shape*>(node);
+      if(shape==(Shape*)0) continue;
+      IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
+      if(ifs==(IndexedFaceSet*)0) continue;
+
+      int nV = ifs->getNumberOfVertices();
+      vector<int>& coordIndex = ifs->getCoordIndex();
+      PolygonMesh polygon_mesh(nV, coordIndex);
+
+      vector<int> ccIndex;
+      vector<bool> invert_face;
+      int nCC = polygon_mesh.orient(ccIndex, invert_face);
+
+      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+
+      if (nCC == 0) {
+        cout << "        la malla no es orientable" << endl;
+        break;
+      }
+
+      cout << "        nCC = " << nCC << endl;
+
+      int nC = polygon_mesh.getNumberOfCorners();
+      int iC0, iC1, iF;
+      for (iC0=iC1=iF=0; iC1<nC; iC1++) {
+        if(coordIndex[iC1]>=0) continue;
+        cout << "        invert_face[" << iF << "] = " << tv(invert_face[iF]) << endl;
+        cout << "        ccIndex[" << iF << "]     = " << ccIndex[iF] << endl;
+        if (invert_face[iF]) {
+          int iCfront = iC0;
+          int iCback = iC1-1;
+          while (iCfront < iCback) {
+            int tmp = coordIndex[iCfront];
+            coordIndex[iCfront] = coordIndex[iCback];
+            coordIndex[iCback] = tmp;
+            iCfront++;
+            iCback--;
+          }
+        }
+        iC0 = iC1+1;
+        iF++;
+      }
+
+      cout << "        la malla fue orientada con éxito" << endl;
+    }
     break;
   case Operation::REMOVE_ISOLATED_VERTICES:
     // perform the operation here
+    cout << "    removiendo vértices aislados" << endl;
+    for(int iIfs=0;(node=sgt.next())!=(Node*)0;iIfs++) {
+      Shape* shape = dynamic_cast<Shape*>(node);
+      if(shape==(Shape*)0) continue;
+      IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
+      if(ifs==(IndexedFaceSet*)0) continue;
+
+      int nV = ifs->getNumberOfVertices();
+      PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
+    }
     break;
   case Operation::CUT_THROUGH_SINGULAR_VERTICES:
     // perform the operation here
+    cout << "    recortando por los vértices singulares" << endl;
+    for(int iIfs=0;(node=sgt.next())!=(Node*)0;iIfs++) {
+      Shape* shape = dynamic_cast<Shape*>(node);
+      if(shape==(Shape*)0) continue;
+      IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
+      if(ifs==(IndexedFaceSet*)0) continue;
+
+      int nV = ifs->getNumberOfVertices();
+      PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
+    }
     break;
   case Operation::CONVERT_TO_MANIFOLD:
     // perform the operation here
+    cout << "    convirtiendo la malla a manifold" << endl;
+    for(int iIfs=0;(node=sgt.next())!=(Node*)0;iIfs++) {
+      Shape* shape = dynamic_cast<Shape*>(node);
+      if(shape==(Shape*)0) continue;
+      IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
+      if(ifs==(IndexedFaceSet*)0) continue;
+
+      int nV = ifs->getNumberOfVertices();
+      PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
+    }
     break;
   case Operation::NONE:
   default:
