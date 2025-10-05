@@ -463,6 +463,46 @@ int main(int argc, char **argv) {
 
       int nV = ifs->getNumberOfVertices();
       PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
+
+      vector<int> coordMap;
+      vector<int> coordIndexOut;
+      bool success = polygon_mesh.removeIsolatedVertices(coordMap, coordIndexOut);
+
+      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+
+      if (!success) {
+        cout << "        la malla no tiene vértices aislados" << endl;
+        break;
+      }
+
+      int nVout = coordMap.size();
+
+      cout << "        cantidad de vértices removidos = " << nV - nVout << endl;
+      cout << "        cantidad de vértices restantes = " << nVout << endl;
+
+      cout << "        mapeo de vértices:" << endl;
+      for (int iV=0; iV<nVout; iV++) {
+        cout << "          coordMap[" << iV << "] = " << coordMap[iV] << endl;
+      }
+
+      int nC = coordIndexOut.size();
+      cout << "        nuevo coordIndex:" << endl;
+      cout << "          [ ";
+      for (int iC=0; iC<nC; iC++) {
+        cout << coordIndexOut[iC];
+        if (coordIndexOut[iC]>=0) {
+          cout << " ";
+        } else {
+          if (iC<nC-1) {
+            cout << endl;
+            cout << "            ";
+          } else {
+            cout << " ]" << endl;
+          }
+        }
+      }
+
+
     }
     break;
   case Operation::CUT_THROUGH_SINGULAR_VERTICES:
@@ -476,6 +516,46 @@ int main(int argc, char **argv) {
 
       int nV = ifs->getNumberOfVertices();
       PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
+
+      vector<int> vIndexMap;
+      vector<int> coordIndexOut;
+
+      polygon_mesh.cutThroughSingularVertices(vIndexMap, coordIndexOut);
+
+      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+
+      int nVout = vIndexMap.size();
+      if (nVout==0) {
+        cout << "        la malla no tiene vértices singulares que separan componentes conexas" << endl;
+        break;
+      }
+
+      int nI = polygon_mesh.numberOfIsolatedVertices();
+      cout << "        cantidad de vértices aislados removidos = " << nI << endl;
+      cout << "        nVout = " << nVout << endl;
+
+      cout << "        mapeo de vértices:" << endl;
+      for (int iV=0; iV<nVout; iV++) {
+        cout << "          coordMap[" << iV << "] = " << vIndexMap[iV] << endl;
+      }
+
+      int nC = coordIndexOut.size();
+      cout << "        nuevo coordIndex:" << endl;
+      cout << "          [ ";
+      for (int iC=0; iC<nC; iC++) {
+        cout << coordIndexOut[iC];
+        if (coordIndexOut[iC]>=0) {
+          cout << " ";
+        } else {
+          if (iC<nC-1) {
+            cout << endl;
+            cout << "            ";
+          } else {
+            cout << " ]" << endl;
+          }
+        }
+      }
+
     }
     break;
   case Operation::CONVERT_TO_MANIFOLD:
@@ -489,6 +569,45 @@ int main(int argc, char **argv) {
 
       int nV = ifs->getNumberOfVertices();
       PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
+
+      vector<int> vIndexMap;
+      vector<int> coordIndexOut;
+
+      polygon_mesh.convertToManifold(vIndexMap, coordIndexOut);
+
+      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+
+      int nVout = vIndexMap.size();
+      if (nVout==0) {
+        cout << "        la malla ya es manifold" << endl;
+        break;
+      }
+
+      int nI = polygon_mesh.numberOfIsolatedVertices();
+      cout << "        cantidad de vértices aislados removidos = " << nI << endl;
+      cout << "        nVout = " << nVout << endl;
+
+      cout << "        mapeo de vértices:" << endl;
+      for (int iV=0; iV<nVout; iV++) {
+        cout << "          coordMap[" << iV << "] = " << vIndexMap[iV] << endl;
+      }
+
+      int nC = coordIndexOut.size();
+      cout << "        nuevo coordIndex:" << endl;
+      cout << "          [ ";
+      for (int iC=0; iC<nC; iC++) {
+        cout << coordIndexOut[iC];
+        if (coordIndexOut[iC]>=0) {
+          cout << " ";
+        } else {
+          if (iC<nC-1) {
+            cout << endl;
+            cout << "            ";
+          } else {
+            cout << " ]" << endl;
+          }
+        }
+      }
     }
     break;
   case Operation::NONE:

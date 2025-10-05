@@ -812,15 +812,18 @@ void PolygonMesh::cutThroughSingularVertices
 
   int nF = getNumberOfFaces();
   int nV = getNumberOfVertices();
+  int nI = numberOfIsolatedVertices();
   int nVout = partition.getNumberOfParts() - nF;
-  if (nVout == nV) return;
+  //Si la cantidad de partes en la partición de esquinas es igual a la cantidad de vértices sin contar los vértices aislados,
+  //entonces no hay vértices singulares que separan componentes conexas.
+  if (nVout == (nV-nI)) return;
 
   for (int iC=0; iC<nC; iC++) {
     coordIndexOut.push_back(-1);
   }
 
   int vertexCounter=0;
-  for (int iC; iC<nC; iC++) {
+  for (int iC=0; iC<nC; iC++) {
     if (_coordIndex[iC] == -1) continue;
     if (partition.find(iC) == iC) {
       coordIndexOut[iC] = vertexCounter;
@@ -829,7 +832,7 @@ void PolygonMesh::cutThroughSingularVertices
     }
   }
 
-  for (int iC; iC<nC; iC++) {
+  for (int iC=0; iC<nC; iC++) {
     if (_coordIndex[iC] == -1) continue;
     int iCroot = partition.find(iC);
     if (iCroot != iC) {
@@ -889,24 +892,22 @@ void PolygonMesh::convertToManifold
       if (getSrc(iC) == getDst(iCt)) {
         partition.join(iC, getNext(iCt));
         partition.join(getNext(iC), iCt);
-      } else {
-        partition.join(iC, iCt);
-        partition.join(getNext(iC), getNext(iCt));
       }
     }
   }
 
   int nF = getNumberOfFaces();
   int nV = getNumberOfVertices();
+  int nI = numberOfIsolatedVertices();
   int nVout = partition.getNumberOfParts() - nF;
-  if (nVout == nV) return;
+  if (nVout == (nV-nI)) return;
 
   for (int iC=0; iC<nC; iC++) {
     coordIndexOut.push_back(-1);
   }
 
   int vertexCounter=0;
-  for (int iC; iC<nC; iC++) {
+  for (int iC=0; iC<nC; iC++) {
     if (_coordIndex[iC] == -1) continue;
     if (partition.find(iC) == iC) {
       coordIndexOut[iC] = vertexCounter;
@@ -915,7 +916,7 @@ void PolygonMesh::convertToManifold
     }
   }
 
-  for (int iC; iC<nC; iC++) {
+  for (int iC=0; iC<nC; iC++) {
     if (_coordIndex[iC] == -1) continue;
     int iCroot = partition.find(iC);
     if (iCroot != iC) {
