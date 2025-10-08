@@ -386,9 +386,14 @@ bool PolygonMesh::isOriented() const {
   int nC = getNumberOfCorners();
   for (int iC=0; iC<nC; iC++) {
     if (_coordIndex[iC]==-1) continue;
-    if (!HalfEdges::isOriented(iC)) {
-      oriented = false;
-      break;
+    int vSrc = getSrc(iC);
+    int vDst = getDst(iC);
+    int iE = getEdge(min(vSrc, vDst), max(vSrc, vDst));
+    bool regularEdge = isRegularEdge(iE);
+    if (regularEdge) {
+      int iCtwin = getTwin(iC);
+      oriented = (getDst(iCtwin) == getSrc(iC));
+      if (!oriented) break;
     }
   }
   return oriented;

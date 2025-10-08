@@ -139,6 +139,30 @@ void error(const char *msg) {
   exit(0);
 }
 
+
+//Función auxiliar
+void updateVertices(IndexedFaceSet* ifs, vector<int>& vertexMapping) {
+  vector<float>& coord = ifs->getCoord();
+  int nVout = vertexMapping.size();
+  vector<float> newCoord;
+
+  for (int iV=0; iV<nVout; iV++) {
+    int iVold = vertexMapping[iV];
+    float coord1 = coord[iVold*3];
+    float coord2 = coord[iVold*3 + 1];
+    float coord3 = coord[iVold*3 + 2];
+    newCoord.push_back(coord1);
+    newCoord.push_back(coord2);
+    newCoord.push_back(coord3);
+  }
+  coord = newCoord;
+
+  //Elimino las propiedades desactualizadas
+  ifs->clearColor();
+  ifs->clearNormal();
+  ifs->clearTexCoord();
+
+}
 //////////////////////////////////////////////////////////////////////
 int main(int argc, char **argv) {
 
@@ -329,20 +353,28 @@ int main(int argc, char **argv) {
       IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
       if(ifs==(IndexedFaceSet*)0) continue;
 
-      int nV = ifs->getNumberOfVertices();
-      PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
-      vector<int> faceLabel;
-      int nCC = polygon_mesh.computeConnectedComponentsPrimal(faceLabel);
-
       cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+
+      int nV = ifs->getNumberOfVertices();
+      PolygonMesh* polygon_mesh = new PolygonMesh(nV, ifs->getCoordIndex());
+      vector<int> faceLabel;
+      int nCC = polygon_mesh->computeConnectedComponentsPrimal(faceLabel);
+
       cout << "        nCC_primal = " << nCC << endl;
 
-      if (nCC == 0) continue;
+      if (nCC == 0) {
+        delete polygon_mesh;
+        cout << endl;
+        continue;
+      }
 
-      int nF = polygon_mesh.getNumberOfFaces();
+      int nF = polygon_mesh->getNumberOfFaces();
       for (int iF=0; iF<nF; iF++) {
         cout << "        faceLabel[" << iF << "] = " << faceLabel[iF] << endl;
       }
+
+      delete polygon_mesh;
+      cout << endl;
     }
     break;
   case Operation::COMPUTE_CC_DUAL:
@@ -354,20 +386,28 @@ int main(int argc, char **argv) {
       IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
       if(ifs==(IndexedFaceSet*)0) continue;
 
-      int nV = ifs->getNumberOfVertices();
-      PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
-      vector<int> faceLabel;
-      int nCC = polygon_mesh.computeConnectedComponentsDual(faceLabel);
-
       cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+
+      int nV = ifs->getNumberOfVertices();
+      PolygonMesh* polygon_mesh = new PolygonMesh(nV, ifs->getCoordIndex());
+      vector<int> faceLabel;
+      int nCC = polygon_mesh->computeConnectedComponentsDual(faceLabel);
+
       cout << "        nCC_dual = " << nCC << endl;
 
-      if (nCC == 0) continue;
+      if (nCC == 0) {
+        delete polygon_mesh;
+        cout << endl;
+        continue;
+      }
 
-      int nF = polygon_mesh.getNumberOfFaces();
+      int nF = polygon_mesh->getNumberOfFaces();
       for (int iF=0; iF<nF; iF++) {
         cout << "        faceLabel[" << iF << "] = " << faceLabel[iF] << endl;
       }
+
+      delete polygon_mesh;
+      cout << endl;
     }
     break;
   case Operation::IS_ORIENTED:
@@ -379,11 +419,15 @@ int main(int argc, char **argv) {
       IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
       if(ifs==(IndexedFaceSet*)0) continue;
 
-      int nV = ifs->getNumberOfVertices();
-      PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
-
       cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
-      cout << "        isOriented = " << tv(polygon_mesh.isOriented()) << endl;
+
+      int nV = ifs->getNumberOfVertices();
+      PolygonMesh* polygon_mesh = new PolygonMesh(nV, ifs->getCoordIndex());
+
+      cout << "        isOriented = " << tv(polygon_mesh->isOriented()) << endl;
+
+      delete polygon_mesh;
+      cout << endl;
     }
     break;
   case Operation::IS_ORIENTABLE:
@@ -395,11 +439,15 @@ int main(int argc, char **argv) {
       IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
       if(ifs==(IndexedFaceSet*)0) continue;
 
-      int nV = ifs->getNumberOfVertices();
-      PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
-
       cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
-      cout << "        isOrientable = " << tv(polygon_mesh.isOrientable()) << endl;
+
+      int nV = ifs->getNumberOfVertices();
+      PolygonMesh* polygon_mesh = new PolygonMesh(nV, ifs->getCoordIndex());
+
+      cout << "        isOrientable = " << tv(polygon_mesh->isOrientable()) << endl;
+
+      delete polygon_mesh;
+      cout << endl;
     }
     break;
   case Operation::ORIENT:
@@ -411,24 +459,27 @@ int main(int argc, char **argv) {
       IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
       if(ifs==(IndexedFaceSet*)0) continue;
 
+      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+
       int nV = ifs->getNumberOfVertices();
       vector<int>& coordIndex = ifs->getCoordIndex();
-      PolygonMesh polygon_mesh(nV, coordIndex);
+      PolygonMesh* polygon_mesh = new PolygonMesh(nV, coordIndex);
 
       vector<int> ccIndex;
       vector<bool> invert_face;
-      int nCC = polygon_mesh.orient(ccIndex, invert_face);
-
-      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+      int nCC = polygon_mesh->orient(ccIndex, invert_face);
 
       if (nCC == 0) {
         cout << "        la malla no es orientable" << endl;
-        break;
+        delete polygon_mesh;
+        cout << endl;
+        continue;
       }
 
-      cout << "        nCC = " << nCC << endl;
+      cout << "        nCC_dual = " << nCC << endl;
 
-      int nC = polygon_mesh.getNumberOfCorners();
+      //Invierto las caras en el coordIndex
+      int nC = polygon_mesh->getNumberOfCorners();
       int iC0, iC1, iF;
       for (iC0=iC1=iF=0; iC1<nC; iC1++) {
         if(coordIndex[iC1]>=0) continue;
@@ -449,7 +500,31 @@ int main(int argc, char **argv) {
         iF++;
       }
 
+      //Como cambian las esquinas, elimino las propiedades que sean por esquina. Las propediades que son por cara o por vértice permanecen iguales
+      if (ifs->hasNormalPerCorner()) ifs->clearNormal();
+      if (ifs->hasColorPerCorner()) ifs->clearColor();
+      if (ifs->hasTexCoordPerCorner()) ifs->clearTexCoord();
+
       cout << "        la malla fue orientada con éxito" << endl;
+
+      cout << "        nuevo coordIndex:" << endl;
+      cout << "          [ ";
+      for (int iC=0; iC<nC; iC++) {
+        cout << coordIndex[iC];
+        if (coordIndex[iC]>=0) {
+          cout << " ";
+        } else {
+          if (iC<nC-1) {
+            cout << endl;
+            cout << "            ";
+          } else {
+            cout << " ]" << endl;
+          }
+        }
+      }
+
+      delete polygon_mesh;
+      cout << endl;
     }
     break;
   case Operation::REMOVE_ISOLATED_VERTICES:
@@ -461,19 +536,25 @@ int main(int argc, char **argv) {
       IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
       if(ifs==(IndexedFaceSet*)0) continue;
 
+      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+
       int nV = ifs->getNumberOfVertices();
-      PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
+      vector<int>& coordIndex = ifs->getCoordIndex();
+      PolygonMesh* polygon_mesh = new PolygonMesh(nV, coordIndex);
 
       vector<int> coordMap;
       vector<int> coordIndexOut;
-      bool success = polygon_mesh.removeIsolatedVertices(coordMap, coordIndexOut);
-
-      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+      bool success = polygon_mesh->removeIsolatedVertices(coordMap, coordIndexOut);
 
       if (!success) {
         cout << "        la malla no tiene vértices aislados" << endl;
-        break;
+        delete polygon_mesh;
+        cout << endl;
+        continue;
       }
+
+      coordIndex = coordIndexOut;
+      updateVertices(ifs, coordMap);
 
       int nVout = coordMap.size();
 
@@ -502,7 +583,8 @@ int main(int argc, char **argv) {
         }
       }
 
-
+      delete polygon_mesh;
+      cout << endl;
     }
     break;
   case Operation::CUT_THROUGH_SINGULAR_VERTICES:
@@ -514,23 +596,29 @@ int main(int argc, char **argv) {
       IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
       if(ifs==(IndexedFaceSet*)0) continue;
 
+      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+
       int nV = ifs->getNumberOfVertices();
-      PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
+      vector<int>& coordIndex = ifs->getCoordIndex();
+      PolygonMesh* polygon_mesh = new PolygonMesh(nV, coordIndex);
 
       vector<int> vIndexMap;
       vector<int> coordIndexOut;
 
-      polygon_mesh.cutThroughSingularVertices(vIndexMap, coordIndexOut);
-
-      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+      polygon_mesh->cutThroughSingularVertices(vIndexMap, coordIndexOut);
 
       int nVout = vIndexMap.size();
       if (nVout==0) {
-        cout << "        la malla no tiene vértices singulares que separan componentes conexas" << endl;
-        break;
+        cout << "        la malla no tiene vértices singulares que separan componentes conexas del primal graph" << endl;
+        delete polygon_mesh;
+        cout << endl;
+        continue;
       }
 
-      int nI = polygon_mesh.numberOfIsolatedVertices();
+      coordIndex = coordIndexOut;
+      updateVertices(ifs, vIndexMap);
+
+      int nI = polygon_mesh->numberOfIsolatedVertices();
       cout << "        cantidad de vértices aislados removidos = " << nI << endl;
       cout << "        nVout = " << nVout << endl;
 
@@ -556,6 +644,8 @@ int main(int argc, char **argv) {
         }
       }
 
+      delete polygon_mesh;
+      cout << endl;
     }
     break;
   case Operation::CONVERT_TO_MANIFOLD:
@@ -567,23 +657,62 @@ int main(int argc, char **argv) {
       IndexedFaceSet* ifs = dynamic_cast<IndexedFaceSet*>(shape->getGeometry());
       if(ifs==(IndexedFaceSet*)0) continue;
 
+      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+
       int nV = ifs->getNumberOfVertices();
-      PolygonMesh polygon_mesh(nV, ifs->getCoordIndex());
+      vector<int>& coordIndex = ifs->getCoordIndex();
+      PolygonMesh* polygon_mesh = new PolygonMesh(nV, coordIndex);
+
+      //Si la malla no está orientada, la intento orientar antes de llamar a convertToManifold
+      if (!polygon_mesh->isOriented()) {
+        vector<int> ccIndex;
+        vector<bool> invert_face;
+        int nCC = polygon_mesh->orient(ccIndex, invert_face);
+        if (nCC != 0) {
+          int nC = polygon_mesh->getNumberOfCorners();
+          int iC0, iC1, iF;
+          for (iC0=iC1=iF=0; iC1<nC; iC1++) {
+            if(coordIndex[iC1]>=0) continue;
+            if (invert_face[iF]) {
+              int iCfront = iC0;
+              int iCback = iC1-1;
+              while (iCfront < iCback) {
+                int tmp = coordIndex[iCfront];
+                coordIndex[iCfront] = coordIndex[iCback];
+                coordIndex[iCback] = tmp;
+                iCfront++;
+                iCback--;
+              }
+            }
+            iC0 = iC1+1;
+            iF++;
+          }
+          //Actualizo el polygon_mesh para asegurarme que sus estructuras sean consistentes con las nuevas esquinas
+          delete polygon_mesh;
+          polygon_mesh = new PolygonMesh(nV, coordIndex);
+          cout << "        la malla fue orientada, convirtiendo la malla orientada a manifold" << endl;
+        }
+      }
+
+
 
       vector<int> vIndexMap;
       vector<int> coordIndexOut;
 
-      polygon_mesh.convertToManifold(vIndexMap, coordIndexOut);
-
-      cout << "      IndexedFaceSet iIfs[" << iIfs <<"]:" << endl;
+      polygon_mesh->convertToManifold(vIndexMap, coordIndexOut);
 
       int nVout = vIndexMap.size();
       if (nVout==0) {
         cout << "        la malla ya es manifold" << endl;
-        break;
+        delete polygon_mesh;
+        cout << endl;
+        continue;
       }
 
-      int nI = polygon_mesh.numberOfIsolatedVertices();
+      coordIndex = coordIndexOut;
+      updateVertices(ifs, vIndexMap);
+
+      int nI = polygon_mesh->numberOfIsolatedVertices();
       cout << "        cantidad de vértices aislados removidos = " << nI << endl;
       cout << "        nVout = " << nVout << endl;
 
@@ -608,6 +737,8 @@ int main(int argc, char **argv) {
           }
         }
       }
+      delete polygon_mesh;
+      cout << endl;
     }
     break;
   case Operation::NONE:
